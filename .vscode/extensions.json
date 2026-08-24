@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "ms-python.python",     // Official Microsoft Python support
+    "astral-sh.ty",         // Official Astral Ty Type Checker
+    "charliermarsh.ruff"    // Official Astral Ruff Linter & Formatter
+  ]
+}

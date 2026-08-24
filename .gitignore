@@ -1,0 +1,28 @@
+# Python-generated files
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Playwright
+playwright/
+
+# Virtual environments and package state
+.venv
+.uv/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# VS Code - Share settings but ignore user-specific state
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+

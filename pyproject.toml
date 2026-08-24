@@ -1,0 +1,76 @@
+[project]
+name = "price-tracker-py"
+version = "0.1.0"
+description = "E-commerce price tracker (Python + Playwright version)"
+readme = "README.md"
+authors = [
+    { name = "Min Thet Naing", email = "minthetnaing90@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "boto3>=1.43.72",
+    "httpx>=0.28.1",
+    "playwright>=1.62.0",
+    "pymongo>=4.17.0",
+    "python-dotenv>=1.2.2",
+]
+
+[project.scripts]
+price-tracker = "price_tracker_py.main:main"
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.3",
+]
+ 
+[tool.ruff]
+# Target your multi-package layout
+src = ["src"]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes (unused imports, undefined names)
+    "I",    # isort (import sorting)
+    "TID252", # flake8-tidy-imports (relative-imports rule)
+    "UP",   # pyupgrade (modernize syntax for your Python version)
+    "B",    # flake8-bugbear (common bug patterns)
+    "A",    # flake8-builtins (catches shadowing builtins like 'id', 'type')
+    "C4",   # flake8-comprehensions (cleaner list/dict/set expressions)
+    "RET",  # flake8-return (consistent return practices)
+    "SIM",  # flake8-simplify (simplifiable if/else, redundant conditions)
+    "PTH",  # flake8-use-pathlib (use Path instead of os.path)
+    "RUF",  # ruff-specific rules (catches Python antipatterns ruff knows best)
+]
+ignore = [
+    "E501",   # line too long, handled by formatter not linter
+    "SIM108", # ternary operator, sometimes explicit if/else is clearer
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-single-line = false
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S101",  # allow assert in tests
+]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
+reportMissingImports = true
+reportMissingTypeStubs = false
+extraPaths = ["./src"] # avoids noise from libs without stubs (playwright, pymongo)
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
