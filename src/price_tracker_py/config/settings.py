@@ -87,7 +87,7 @@ def _env_float(name: str, default: float) -> float:
 _config: AppConfig | None = None
 
 
-def load_config() -> AppConfig:
+def _load_config() -> AppConfig:
     global _config
 
     if _config is not None:
@@ -128,9 +128,4 @@ def load_config() -> AppConfig:
 
 
 def get_config() -> AppConfig:
-    return _config if _config is not None else load_config()
-
-
-def reset_config() -> None:
-    global _config
-    _config = None
+    return _config if _config is not None else _load_config()
