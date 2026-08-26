@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 
-from price_tracker_py.config.settings import TelegramConfig, get_config
+from price_tracker_py.config.settings import TelegramConfig
 from price_tracker_py.util.retry import RetryOptions, with_retry
 
 MAX_ATTEMPTS = 3
