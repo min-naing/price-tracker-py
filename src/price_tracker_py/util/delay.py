@@ -15,4 +15,7 @@ def calculate_exponential_backoff(
     attempt: int,
     base_seconds: float,
 ) -> float:
+    if attempt < 1:
+        raise ValueError("attempt must be greater than or equal to 1")
+
     return base_seconds * (2 ** (attempt - 1))
