@@ -1,5 +1,4 @@
 import pytest
-from dotenv import load_dotenv
 
 from price_tracker_py.config.settings import load_telegram_config
 from price_tracker_py.notification.telegram import send_telegram_alert
@@ -8,9 +7,8 @@ from price_tracker_py.notification.telegram import send_telegram_alert
 @pytest.mark.smoke
 @pytest.mark.asyncio
 async def test_telegram_send_alert_smoke() -> None:
-    load_dotenv()
-
     config = load_telegram_config()
+
     await send_telegram_alert(
         message="hello testing",
         config=config,

@@ -24,6 +24,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "boto3-stubs[s3]>=1.43.86",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.3",
@@ -79,3 +80,4 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
     "smoke: Quick health check tests for core functionality."
 ]
+addopts = ["--import-mode=importlib"]
