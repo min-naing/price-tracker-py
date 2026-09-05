@@ -16,7 +16,6 @@ class TelegramConfig:
 
 @dataclass(frozen=True)
 class BackblazeB2Config:
-    region: str
     end_point: str
     key_id: str
     app_key: str
@@ -68,7 +67,6 @@ def load_mongo_config() -> MongoConfig:
 
 def load_backblaze_b2_config() -> BackblazeB2Config:
     return BackblazeB2Config(
-        region=_require_env("B2_REGION"),
         end_point=_require_env("B2_ENDPOINT"),
         key_id=_require_env("B2_KEY_ID"),
         app_key=_require_env("B2_APP_KEY"),
