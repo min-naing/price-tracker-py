@@ -1,4 +1,5 @@
 import logging
+from typing import ClassVar
 
 from pymongo import AsyncMongoClient
 from pymongo.asynchronous.collection import AsyncCollection
@@ -18,13 +19,18 @@ logger = logging.getLogger(__name__)
 
 
 class MongoDB:
-    _PRODUCTS_COLLECTION_NAME = "products"
-    _PRODUCT_OBSERVATIONS_COLLECTION_NAME = "product_observations"
+    PRODUCTS_COLLECTION_NAME: ClassVar[str] = "products"
+    PRODUCT_OBSERVATIONS_COLLECTION_NAME: ClassVar[str] = "product_observations"
 
     def __init__(self, config: MongoConfig) -> None:
         self._client = AsyncMongoClient(
             config.uri,
-            server_api=ServerApi(version="1", strict=True, deprecation_errors=True),
+            server_api=ServerApi(
+                version="1",
+                strict=True,
+                deprecation_errors=True,
+            ),
+            tz_aware=True,
         )
         self._database = self._client.get_database(config.database_name)
 
@@ -34,11 +40,11 @@ class MongoDB:
 
     @property
     def products(self) -> AsyncCollection[ProductDocument]:
-        return self._database[self._PRODUCTS_COLLECTION_NAME]
+        return self._database[self.PRODUCTS_COLLECTION_NAME]
 
     @property
     def product_observations(self) -> AsyncCollection[ProductObservationDocument]:
-        return self._database[self._PRODUCT_OBSERVATIONS_COLLECTION_NAME]
+        return self._database[self.PRODUCT_OBSERVATIONS_COLLECTION_NAME]
 
     async def connect(self) -> None:
         try:
@@ -74,24 +80,25 @@ class MongoDB:
 
     async def _create_product_observations_timeseries_collection(self) -> None:
         collection_names = await self._database.list_collection_names(
-            filter={"name": self._PRODUCT_OBSERVATIONS_COLLECTION_NAME}
+            filter={"name": self.PRODUCT_OBSERVATIONS_COLLECTION_NAME}
         )
 
-        if self._PRODUCT_OBSERVATIONS_COLLECTION_NAME in collection_names:
+        if self.PRODUCT_OBSERVATIONS_COLLECTION_NAME in collection_names:
             return
 
         timeseries_options = {
             "timeField": "timestamp",
             "metaField": "full_url",
-            "granularity": "hours",
+            "granularity": "minutes",
         }
         await self._database.create_collection(
-            self._PRODUCT_OBSERVATIONS_COLLECTION_NAME,
+            self.PRODUCT_OBSERVATIONS_COLLECTION_NAME,
             timeseries=timeseries_options,
+            expireAfterSeconds=60 * 60 * 24 * 30,
         )
         logger.info(
             "Created %s time-series collection",
-            self._PRODUCT_OBSERVATIONS_COLLECTION_NAME,
+            self.PRODUCT_OBSERVATIONS_COLLECTION_NAME,
         )
 
     async def _create_indexes(self) -> None:

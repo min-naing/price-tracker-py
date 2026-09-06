@@ -41,7 +41,8 @@ async def get_latest_observation(
     full_url: str,
 ) -> ProductObservationDocument | None:
     return await collection.find_one(
-        {"full_url": full_url}, sort=[("timestamp", DESCENDING)]
+        {"full_url": full_url},
+        sort=[("timestamp", DESCENDING)],
     )
 
 
