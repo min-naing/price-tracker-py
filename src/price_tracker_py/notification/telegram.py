@@ -1,4 +1,5 @@
 import json
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import httpx
@@ -64,13 +65,10 @@ def _parse_retry_after(response_body: str) -> float | None:
 
 
 def _should_retry(error: Exception) -> bool:
-    if isinstance(error, TelegramRateLimitError):
-        return True
-
     if isinstance(error, TelegramSendHttpError):
         return 500 <= error.status_code < 600
 
-    return isinstance(error, httpx.RequestError)
+    return isinstance(error, (TelegramRateLimitError, httpx.RequestError))
 
 
 def _get_delay(
@@ -87,7 +85,7 @@ def _get_delay(
 @asynccontextmanager
 async def _get_client(
     client: httpx.AsyncClient | None,
-):
+) -> AsyncGenerator[httpx.AsyncClient]:
     if client is not None:
         yield client
         return
@@ -145,3 +143,35 @@ async def send_telegram_alert(
             raise TelegramSendFailError(
                 f"Telegram send failed after {MAX_ATTEMPTS} attempts",
             ) from ex
+
+
+MAX_MESSAGE_LENGTH = 4096
+MAX_ALERTS_PER_MESSAGE = 5
+SEPARATOR = "\n\n"
+
+
+def build_alert_messages(alert_messages: list[str]) -> list[str]:
+    messages: list[str] = []
+    current_batch: list[str] = []
+
+    for alert_message in alert_messages:
+        if len(alert_message) > MAX_MESSAGE_LENGTH:
+            raise ValueError(
+                "A single alert message exceeds Telegram's maximum message length"
+            )
+
+        candidate = SEPARATOR.join([*current_batch, alert_message])
+
+        exceeds_message_length = len(candidate) > MAX_MESSAGE_LENGTH
+        exceeds_batch_size = len(current_batch) >= MAX_ALERTS_PER_MESSAGE
+
+        if current_batch and (exceeds_message_length or exceeds_batch_size):
+            messages.append(SEPARATOR.join(current_batch))
+            current_batch = [alert_message]
+        else:
+            current_batch.append(alert_message)
+
+    if current_batch:
+        messages.append(SEPARATOR.join(current_batch))
+
+    return messages

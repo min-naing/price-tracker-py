@@ -5,12 +5,15 @@ import pytest
 
 from price_tracker_py.config.settings import TelegramConfig
 from price_tracker_py.notification.telegram import (
+    MAX_MESSAGE_LENGTH,
+    SEPARATOR,
     TelegramRateLimitError,
     TelegramSendFailError,
     TelegramSendHttpError,
     _get_delay,
     _parse_retry_after,
     _should_retry,
+    build_alert_messages,
     send_telegram_alert,
 )
 
@@ -342,3 +345,44 @@ async def test_send_telegram_alert_retries_rate_limit(
 
     assert attempts == 2
     assert sleep_calls == [6.0]
+
+
+def test_build_alert_messages_returns_empty_list_for_no_alerts() -> None:
+    assert build_alert_messages([]) == []
+
+
+def test_build_alert_messages_accepts_alert_of_max_length() -> None:
+    alert = "a" * MAX_MESSAGE_LENGTH
+
+    result = build_alert_messages([alert])
+
+    assert result == [alert]
+
+
+def test_build_alert_messages_raises_for_oversized_alert() -> None:
+    alert = "a" * (MAX_MESSAGE_LENGTH + 1)
+
+    with pytest.raises(ValueError, match="single alert message"):
+        build_alert_messages([alert])
+
+
+def test_build_alert_messages_splits_after_five_alerts() -> None:
+    alerts = [f"Alert {i}" for i in range(6)]
+
+    result = build_alert_messages(alerts)
+
+    assert len(result) == 2
+
+    assert result == [
+        SEPARATOR.join(alerts[:5]),
+        alerts[5],
+    ]
+
+
+def test_build_alert_messages_splits_when_message_is_too_long() -> None:
+    alert_1 = "a" * 3000
+    alert_2 = "b" * 2000
+
+    result = build_alert_messages([alert_1, alert_2])
+
+    assert result == [alert_1, alert_2]
