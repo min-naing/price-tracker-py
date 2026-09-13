@@ -4,9 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 from pymongo import DESCENDING
 
-from price_tracker_py.model.product_type import ProductType
 from price_tracker_py.model.scraped_product import ScrapedProduct
-from price_tracker_py.model.stock_status import StockStatus
 from price_tracker_py.repository.product_repository import (
     get_latest_observation,
     insert_observation,
@@ -14,25 +12,11 @@ from price_tracker_py.repository.product_repository import (
 )
 
 
-def create_test_product() -> ScrapedProduct:
-    return ScrapedProduct(
-        name="product",
-        price=12.99,
-        full_url="https://example.com/product",
-        img_url="https://example.com/image.jpeg",
-        is_on_sale=False,
-        product_type=ProductType.SIMPLE,
-        stock_status=StockStatus.IN_STOCK,
-        scraped_at=datetime.now(UTC),
-    )
-
-
 @pytest.mark.asyncio
-async def test_upsert_product() -> None:
+async def test_upsert_product(scraped_product: ScrapedProduct) -> None:
     collection = AsyncMock()
-    product = create_test_product()
 
-    await upsert_product(collection, product)
+    await upsert_product(collection, scraped_product)
 
     collection.update_one.assert_awaited_once()
 
@@ -41,12 +25,12 @@ async def test_upsert_product() -> None:
     query_filter = args[0]
     update_operation = args[1]
 
-    assert query_filter == {"_id": product.full_url}
+    assert query_filter == {"_id": scraped_product.full_url}
 
     set_fields = update_operation["$set"]
-    assert set_fields["name"] == product.name
-    assert set_fields["img_url"] == product.img_url
-    assert set_fields["product_type"] == product.product_type
+    assert set_fields["name"] == scraped_product.name
+    assert set_fields["img_url"] == scraped_product.img_url
+    assert set_fields["product_type"] == scraped_product.product_type
 
     updated_at = set_fields["updated_at"]
     created_at = update_operation["$setOnInsert"]["created_at"]
@@ -76,19 +60,20 @@ async def test_get_latest_observation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_insert_observation() -> None:
+async def test_insert_observation(
+    scraped_product: ScrapedProduct,
+) -> None:
     collection = AsyncMock()
-    product = create_test_product()
 
-    await insert_observation(collection, product)
+    await insert_observation(collection, scraped_product)
 
     collection.insert_one.assert_awaited_once()
 
     args, _ = collection.insert_one.call_args
 
     document = args[0]
-    assert document["full_url"] == product.full_url
-    assert document["price"] == product.price
-    assert document["is_on_sale"] == product.is_on_sale
-    assert document["stock_status"] == product.stock_status
-    assert document["timestamp"] == product.scraped_at
+    assert document["full_url"] == scraped_product.full_url
+    assert document["price"] == scraped_product.price
+    assert document["is_on_sale"] == scraped_product.is_on_sale
+    assert document["stock_status"] == scraped_product.stock_status
+    assert document["timestamp"] == scraped_product.scraped_at

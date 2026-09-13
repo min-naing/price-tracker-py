@@ -2,12 +2,10 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from tests.smoke.utils import truncate_to_milliseconds
 
-from price_tracker_py.config.settings import load_mongo_config
 from price_tracker_py.db.mongodb import MongoDB
-from price_tracker_py.model.product_type import ProductType
 from price_tracker_py.model.scraped_product import ScrapedProduct
-from price_tracker_py.model.stock_status import StockStatus
 from price_tracker_py.repository.product_repository import (
     get_latest_observation,
     insert_observation,
@@ -15,88 +13,74 @@ from price_tracker_py.repository.product_repository import (
 )
 
 
-def create_test_product() -> ScrapedProduct:
-    return ScrapedProduct(
-        name="Product 1",
-        price=13.99,
-        full_url="https://example.com/product/1",
-        img_url="https://example.com/image.jpg",
-        is_on_sale=False,
-        product_type=ProductType.SIMPLE,
-        stock_status=StockStatus.IN_STOCK,
-        scraped_at=datetime.now(UTC),
-    )
-
-
 @pytest.mark.asyncio
-async def test_upsert_product() -> None:
-    mongo_config = load_mongo_config()
-    mongodb = MongoDB(mongo_config)
-    product = create_test_product()
+async def test_upsert_product(
+    scraped_product: ScrapedProduct,
+    db: MongoDB,
+) -> None:
     try:
-        collection = mongodb.products
-        await upsert_product(collection, product)
+        collection = db.products
+        await upsert_product(collection, scraped_product)
 
         result = await collection.find_one(
-            {"_id": product.full_url},
+            {"_id": scraped_product.full_url},
         )
 
         assert result
-        assert result["name"] == product.name
-        assert result["img_url"] == product.img_url
-        assert result["product_type"] == product.product_type
+        assert result["name"] == scraped_product.name
+        assert result["img_url"] == scraped_product.img_url
+        assert result["product_type"] == scraped_product.product_type
     finally:
-        await mongodb.close()
+        await db.products.delete_one({"_id": scraped_product.full_url})
 
 
 @pytest.mark.asyncio
-async def test_insert_observation() -> None:
-    mongo_config = load_mongo_config()
-    mongodb = MongoDB(mongo_config)
-    product = create_test_product()
+async def test_insert_observation(
+    scraped_product: ScrapedProduct,
+    db: MongoDB,
+) -> None:
     try:
-        collection = mongodb.product_observations
-        await insert_observation(collection, product)
+        collection = db.product_observations
+        await insert_observation(collection, scraped_product)
 
         result = await collection.find_one(
             {
-                "full_url": product.full_url,
-                "timestamp": product.scraped_at,
+                "full_url": scraped_product.full_url,
+                "timestamp": scraped_product.scraped_at,
             }
         )
 
         assert result
-        assert result["price"] == product.price
-        assert result["is_on_sale"] == product.is_on_sale
-        assert result["stock_status"] == product.stock_status
+        assert result["price"] == scraped_product.price
+        assert result["is_on_sale"] == scraped_product.is_on_sale
+        assert result["stock_status"] == scraped_product.stock_status
     finally:
-        await mongodb.close()
+        await db.product_observations.delete_one({"full_url": scraped_product.full_url})
 
 
 @pytest.mark.asyncio
-async def test_get_latest_observation() -> None:
-    mongo_config = load_mongo_config()
-    mongodb = MongoDB(mongo_config)
+async def test_get_latest_observation(
+    scraped_product: ScrapedProduct,
+    db: MongoDB,
+) -> None:
+    old_product = replace(
+        scraped_product,
+        scraped_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+
+    latest_product = replace(
+        scraped_product,
+        scraped_at=datetime.now(UTC),
+    )
     try:
-        collection = mongodb.product_observations
-        product = create_test_product()
-
-        old_product = replace(
-            product,
-            scraped_at=datetime.now(UTC) - timedelta(hours=1),
-        )
-
-        latest_product = replace(
-            product,
-            scraped_at=datetime.now(UTC),
-        )
+        collection = db.product_observations
 
         await insert_observation(collection, old_product)
         await insert_observation(collection, latest_product)
 
         result = await get_latest_observation(
             collection,
-            full_url=product.full_url,
+            full_url=scraped_product.full_url,
         )
 
         assert result
@@ -104,10 +88,6 @@ async def test_get_latest_observation() -> None:
             latest_product.scraped_at
         )
     finally:
-        await mongodb.close()
-
-
-def truncate_to_milliseconds(value: datetime) -> datetime:
-    return value.replace(
-        microsecond=(value.microsecond // 1000) * 1000,
-    )
+        await db.product_observations.delete_many(
+            {"full_url": scraped_product.full_url}
+        )

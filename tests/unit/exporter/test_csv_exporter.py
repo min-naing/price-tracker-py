@@ -1,31 +1,11 @@
 import csv
 import io
-from datetime import UTC, datetime
+from dataclasses import replace
 
 import pytest
 
 from price_tracker_py.export.csv_exporter import CSV_HEADERS, export_to_csv
-from price_tracker_py.model.product_type import ProductType
 from price_tracker_py.model.scraped_product import ScrapedProduct
-from price_tracker_py.model.stock_status import StockStatus
-
-
-def _create_product(
-    name: str,
-    price: float,
-    full_url: str,
-    img_url: str | None = "https://example.com/image.jpg",
-) -> ScrapedProduct:
-    return ScrapedProduct(
-        name=name,
-        price=price,
-        is_on_sale=False,
-        product_type=ProductType.SIMPLE,
-        stock_status=StockStatus.IN_STOCK,
-        img_url=img_url,
-        full_url=full_url,
-        scraped_at=datetime.now(UTC),
-    )
 
 
 def test_export_to_csv_returns_headers() -> None:
@@ -38,9 +18,22 @@ def test_export_to_csv_returns_headers() -> None:
 
 
 @pytest.mark.parametrize("product_count", [1, 2])
-def test_export_to_csv_exports_products(product_count: int) -> None:
-    product_1 = _create_product("Coffee", 30.34, "https://example.com/1")
-    product_2 = _create_product("Tea", 20.50, "https://example.com/2")
+def test_export_to_csv_exports_products(
+    scraped_product: ScrapedProduct,
+    product_count: int,
+) -> None:
+    product_1 = replace(
+        scraped_product,
+        name="Coffee",
+        price=30.34,
+        full_url="https://example.com/1",
+    )
+    product_2 = replace(
+        scraped_product,
+        name="Tea",
+        price=20.50,
+        full_url="https://example.com/2",
+    )
 
     products = [product_1, product_2][:product_count]
 
@@ -67,8 +60,12 @@ def test_export_to_csv_exports_products(product_count: int) -> None:
         assert row == expected_row
 
 
-def test_export_to_csv_handles_missing_img_url() -> None:
-    product = _create_product(
+def test_export_to_csv_handles_missing_img_url(
+    scraped_product: ScrapedProduct,
+) -> None:
+
+    product = replace(
+        scraped_product,
         name="ကော်ဖီ",
         price=30.34,
         img_url=None,
@@ -85,8 +82,11 @@ def test_export_to_csv_handles_missing_img_url() -> None:
     assert rows[1][CSV_HEADERS.index("img_url")] == ""
 
 
-def test_export_to_csv_preserves_unicode() -> None:
-    product = _create_product(
+def test_export_to_csv_preserves_unicode(
+    scraped_product: ScrapedProduct,
+) -> None:
+    product = replace(
+        scraped_product,
         name="ကော်ဖီ",
         price=30.34,
         full_url="https://example.com/product/1",
@@ -101,8 +101,11 @@ def test_export_to_csv_preserves_unicode() -> None:
     assert rows[1][CSV_HEADERS.index("name")] == "ကော်ဖီ"
 
 
-def test_export_to_csv_handles_special_characters() -> None:
-    product = _create_product(
+def test_export_to_csv_handles_special_characters(
+    scraped_product: ScrapedProduct,
+) -> None:
+    product = replace(
+        scraped_product,
         name="Coffee, Dark Roast",
         price=30.34,
         full_url="https://example.com/product/1",
