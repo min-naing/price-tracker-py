@@ -31,12 +31,16 @@ class PriceInfo(NamedTuple):
     is_on_sale: bool
 
 
-async def scrape_product_list() -> list[ScrapedProduct]:
+async def scrape_product_list(
+    start_url: str = URL,
+    *,
+    max_pages: int | None = None,
+) -> list[ScrapedProduct]:
     products: list[ScrapedProduct] = []
 
     config = get_config().scraper
 
-    current_url = URL
+    current_url = start_url
     page_number = 1
 
     consecutive_scrape_failures = 0
@@ -140,18 +144,22 @@ async def scrape_product_list() -> list[ScrapedProduct]:
                 )
                 break
 
-            # Successful page resets both counters.
-            consecutive_scrape_failures = 0
-            consecutive_rate_limits = 0
-
             if next_url is None:
                 logger.info("🏁 No more pages. Scraping finished.")
                 break
 
-            await polite_delay()
+            # Successful page resets both counters.
+            consecutive_scrape_failures = 0
+            consecutive_rate_limits = 0
 
             current_url = next_url
             page_number += 1
+
+            if max_pages is not None and page_number > max_pages:
+                logger.info("Reached maximum page limit: %s", max_pages)
+                break
+
+            await polite_delay()
 
     return products
 

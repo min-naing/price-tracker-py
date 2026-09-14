@@ -78,6 +78,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
-    "smoke: Quick health check tests for core functionality."
+    "smoke: Quick health check tests for core functionality.",
+    "integration: tests that use real external systems or services",
 ]
 addopts = ["--import-mode=importlib"]
