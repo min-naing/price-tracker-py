@@ -1,13 +1,16 @@
 import pytest
 
+from price_tracker_py.config.settings import ScraperConfig
 from price_tracker_py.scraper.ecommerce import scrape_product_list
 from price_tracker_py.util.url import normalize_url
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_scrape_product_list() -> None:
-    products = await scrape_product_list(max_pages=1)
+async def test_scrape_product_list(
+    scraper_config: ScraperConfig,
+) -> None:
+    products = await scrape_product_list(config=scraper_config, max_pages=1)
 
     assert products
 
@@ -23,8 +26,10 @@ async def test_scrape_product_list() -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_scrape_product_list_follows_pagination() -> None:
-    products = await scrape_product_list(max_pages=2)
+async def test_scrape_product_list_follows_pagination(
+    scraper_config: ScraperConfig,
+) -> None:
+    products = await scrape_product_list(config=scraper_config, max_pages=2)
 
     assert products
 

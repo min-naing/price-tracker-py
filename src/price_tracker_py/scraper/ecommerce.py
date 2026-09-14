@@ -11,7 +11,7 @@ from playwright.async_api import (
     async_playwright,
 )
 
-from price_tracker_py.config.settings import ScraperConfig, get_config
+from price_tracker_py.config.settings import ScraperConfig
 from price_tracker_py.model.product_type import ProductType
 from price_tracker_py.model.scraped_product import ScrapedProduct
 from price_tracker_py.model.stock_status import StockStatus
@@ -34,11 +34,10 @@ class PriceInfo(NamedTuple):
 async def scrape_product_list(
     start_url: str = URL,
     *,
+    config: ScraperConfig,
     max_pages: int | None = None,
 ) -> list[ScrapedProduct]:
     products: list[ScrapedProduct] = []
-
-    config = get_config().scraper
 
     current_url = start_url
     page_number = 1

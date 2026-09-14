@@ -1,6 +1,7 @@
 import re
+from dataclasses import replace
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, Mock, call
+from unittest.mock import AsyncMock, MagicMock, Mock, call
 
 import pytest
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
@@ -18,6 +19,7 @@ from price_tracker_py.scraper.ecommerce import (
     _scrape_page,
     _scrape_product,
     _should_stop_after_scrape_failure,
+    scrape_product_list,
 )
 from price_tracker_py.scraper.exception import (
     RateLimitedError,
@@ -697,3 +699,234 @@ async def test_scrape_page_raises_when_item_failure_rate_exceeds_threshold(
     #     call(product_list_locator),
     #     call(product_list_locator),
     # ]
+
+
+@pytest.mark.asyncio
+async def test_scrape_product_list_should_retry_after_rate_limit_and_succeed(
+    scraped_product: ScrapedProduct,
+    scraper_config: ScraperConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async_playwright_mock = MagicMock()
+    async_playwright_cm_mock = MagicMock()
+    p_mock = Mock()
+    # context manager mock
+    browser_cm_mock = MagicMock()
+    browser_mock = Mock()
+    page_mock = Mock()
+
+    async_playwright_mock.return_value = async_playwright_cm_mock
+    async_playwright_cm_mock.__aenter__.return_value = p_mock
+
+    p_mock.chromium.launch = AsyncMock(return_value=browser_cm_mock)
+    browser_cm_mock.__aenter__.return_value = browser_mock
+
+    browser_mock.new_page = AsyncMock(return_value=page_mock)
+
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce.async_playwright",
+        async_playwright_mock,
+    )
+
+    start_url = "https://example.com"
+
+    rate_limited_response = Mock()
+    rate_limited_response.status = 429
+    rate_limited_response.url = start_url
+
+    successful_response = Mock()
+    successful_response.status = 200
+    successful_response.url = start_url
+
+    page_mock.goto = AsyncMock(
+        side_effect=[
+            rate_limited_response,
+            successful_response,
+        ]
+    )
+
+    polite_delay_mock = AsyncMock()
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce.polite_delay",
+        polite_delay_mock,
+    )
+
+    scrape_page_mock = AsyncMock(return_value=[scraped_product])
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce._scrape_page",
+        scrape_page_mock,
+    )
+
+    get_next_page_url_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce._get_next_page_url",
+        get_next_page_url_mock,
+    )
+
+    calculate_backoff_mock = Mock(return_value=10)
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce.calculate_exponential_backoff",
+        calculate_backoff_mock,
+    )
+
+    result = await scrape_product_list(start_url, config=scraper_config)
+
+    async_playwright_mock.assert_called_once_with()
+    async_playwright_cm_mock.__aenter__.assert_awaited_once_with()
+
+    p_mock.chromium.launch.assert_awaited_once_with(headless=True)
+    browser_cm_mock.__aenter__.assert_awaited_once_with()
+    browser_mock.new_page.assert_awaited_once_with()
+
+    assert page_mock.goto.await_count == 2
+
+    page_mock.goto.assert_has_awaits(
+        [
+            call(start_url, wait_until="domcontentloaded"),
+            call(start_url, wait_until="domcontentloaded"),
+        ]
+    )
+
+    calculate_backoff_mock.assert_called_once_with(
+        attempt=1,
+        base_seconds=scraper_config.rate_limit_backoff_seconds,
+    )
+
+    polite_delay_mock.assert_awaited_once_with(
+        base_seconds=10,
+        max_jitter_seconds=1,
+    )
+
+    scrape_page_mock.assert_awaited_once_with(
+        page=page_mock,
+        page_number=1,
+        config=scraper_config,
+    )
+
+    get_next_page_url_mock.assert_awaited_once_with(page_mock)
+
+    async_playwright_cm_mock.__aexit__.assert_awaited_once()
+    browser_cm_mock.__aexit__.assert_awaited_once()
+
+    assert result == [scraped_product]
+
+
+@pytest.mark.asyncio
+async def test_scrape_product_list_should_stop_when_rate_limit_retries_exceeded(
+    scraper_config: ScraperConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async_playwright_mock = MagicMock()
+    async_playwright_cm_mock = MagicMock()
+    p_mock = Mock()
+    # context manager mock
+    browser_cm_mock = MagicMock()
+    browser_mock = Mock()
+    page_mock = Mock()
+
+    async_playwright_mock.return_value = async_playwright_cm_mock
+    async_playwright_cm_mock.__aenter__.return_value = p_mock
+
+    p_mock.chromium.launch = AsyncMock(return_value=browser_cm_mock)
+    browser_cm_mock.__aenter__.return_value = browser_mock
+
+    browser_mock.new_page = AsyncMock(return_value=page_mock)
+
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce.async_playwright",
+        async_playwright_mock,
+    )
+
+    start_url = "https://example.com"
+
+    rate_limited_response = Mock()
+    rate_limited_response.status = 429
+    rate_limited_response.url = start_url
+
+    page_mock.goto = AsyncMock(
+        side_effect=[
+            rate_limited_response,
+            rate_limited_response,
+            rate_limited_response,
+        ]
+    )
+
+    scrape_page_mock = AsyncMock()
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce._scrape_page",
+        scrape_page_mock,
+    )
+
+    get_next_page_url_mock = AsyncMock(return_value=None)
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce._get_next_page_url",
+        get_next_page_url_mock,
+    )
+
+    calculate_backoff_mock = Mock(side_effect=[10, 20])
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce.calculate_exponential_backoff",
+        calculate_backoff_mock,
+    )
+
+    polite_delay_mock = AsyncMock()
+    monkeypatch.setattr(
+        "price_tracker_py.scraper.ecommerce.polite_delay",
+        polite_delay_mock,
+    )
+
+    config = replace(
+        scraper_config,
+        max_rate_limit_retries=2,
+    )
+
+    result = await scrape_product_list(start_url, config=config)
+
+    async_playwright_mock.assert_called_once_with()
+    async_playwright_cm_mock.__aenter__.assert_awaited_once_with()
+
+    p_mock.chromium.launch.assert_awaited_once_with(headless=True)
+    browser_cm_mock.__aenter__.assert_awaited_once_with()
+    browser_mock.new_page.assert_awaited_once_with()
+
+    assert page_mock.goto.await_count == 3
+
+    page_mock.goto.assert_has_awaits(
+        [
+            call(start_url, wait_until="domcontentloaded"),
+            call(start_url, wait_until="domcontentloaded"),
+            call(start_url, wait_until="domcontentloaded"),
+        ]
+    )
+
+    assert calculate_backoff_mock.call_count == 2
+
+    calculate_backoff_mock.assert_has_calls(
+        [
+            call(
+                attempt=1,
+                base_seconds=config.rate_limit_backoff_seconds,
+            ),
+            call(
+                attempt=2,
+                base_seconds=config.rate_limit_backoff_seconds,
+            ),
+        ]
+    )
+
+    assert polite_delay_mock.await_count == 2
+
+    polite_delay_mock.assert_has_awaits(
+        [
+            call(base_seconds=10, max_jitter_seconds=1),
+            call(base_seconds=20, max_jitter_seconds=2),
+        ]
+    )
+
+    scrape_page_mock.assert_not_awaited()
+    get_next_page_url_mock.assert_not_awaited()
+
+    async_playwright_cm_mock.__aexit__.assert_awaited_once()
+    browser_cm_mock.__aexit__.assert_awaited_once()
+
+    assert result == []
