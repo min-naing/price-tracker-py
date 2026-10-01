@@ -1,0 +1,58 @@
+name: Scrape Products
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"  # every 6 hours
+  workflow_dispatch:       # allows manual trigger from GitHub UI
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-scrape
+  cancel-in-progress: true
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --dev
+
+      - name: Run unit tests
+        run: uv run pytest tests/unit
+
+      - name: Permit runner to access MongoDB Atlas
+        uses: textbook/atlas-ip@5289cb56e7a858026ddb6101bf714a1f29edeb12 # v1.1.0
+        with:
+          atlas-public-key: ${{ secrets.ATLAS_PUBLIC_KEY }}
+          atlas-private-key: ${{ secrets.ATLAS_PRIVATE_KEY }}
+          group-id: ${{ vars.ATLAS_GROUP_ID }}
+
+      - name: Install Playwright browsers
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run scraper
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APP_KEY: ${{ secrets.B2_APP_KEY }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+          B2_REGION: ${{ secrets.B2_REGION }}
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+        run: uv run price-tracker
