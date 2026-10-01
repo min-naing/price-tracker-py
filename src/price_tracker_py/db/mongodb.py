@@ -32,7 +32,7 @@ class MongoDB:
             ),
             tz_aware=True,
         )
-        self._database = self._client.get_database(config.database_name)
+        self._database = self._client.get_database()
 
     @property
     def database(self) -> AsyncDatabase:

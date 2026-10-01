@@ -29,7 +29,9 @@ async def run() -> None:
         logger.info("📦 Step 1: Scraping...")
         stage_start = time.perf_counter()
 
-        scraped_products = await scrape_product_list(config=config.scraper, max_pages=3)
+        scraped_products = await scrape_product_list(
+            config=config.scraper, max_pages=None
+        )
 
         logger.info(
             "📦 Scraping completed in %.2f seconds",

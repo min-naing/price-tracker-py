@@ -5,7 +5,6 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class MongoConfig:
     uri: str
-    database_name: str
 
 
 @dataclass(frozen=True)
@@ -60,9 +59,7 @@ def load_telegram_config() -> TelegramConfig:
 
 
 def load_mongo_config() -> MongoConfig:
-    return MongoConfig(
-        uri=_require_env("MONGODB_URI"), database_name=_require_env("MONGODB_DATABASE")
-    )
+    return MongoConfig(uri=_require_env("MONGODB_URI"))
 
 
 def load_backblaze_b2_config() -> BackblazeB2Config:
