@@ -7,7 +7,7 @@ E-commerce price tracker that monitors product prices and sends Telegram alerts 
 ```mermaid
 flowchart TD
     A["⏰ GitHub Actions <br> (every 6 hours)"] 
-    A --> B["🌐 Playwright Scraper<br>188 products across 12 pages"] 
+    A --> B["🌐 Playwright Scraper<br>all products across all pages"] 
     B --> C["🔁 Sync to MongoDB Atlas<br>(time series collection)"]
     C --> D{Price dropped?}
     D --> |Yes| E["📬 Telegram Alert"]
@@ -25,10 +25,10 @@ flowchart TD
 
 ## Features
 
-- Scrapes 188 products across 12 pages
+- Scrapes all products across all pages
 - Detects sale prices vs normal prices
 - Identifies variant vs simple products
-- Stores price history in MongoDB time series collection
+- Stores 30-day price history in MongoDB time series collection
 - Sends Telegram alert when price drops
 - Exports scraped data as CSV and uploads to Backblaze B2 cloud storage
 - Runs automatically every 6 hours via GitHub Actions
@@ -73,7 +73,6 @@ flowchart TD
    - `B2_KEY_ID`
    - `B2_APP_KEY`
    - `B2_BUCKET_NAME`
-   - `B2_REGION`
    - `B2_ENDPOINT`
     > **Note:** B2_* values are used to upload CSV file to Backblaze B2 using its S3-compatible API. Any S3-compatible object storage service can be used instead.
 4. Add the MongoDB Atlas API credentials as repository secrets:
