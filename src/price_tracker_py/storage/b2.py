@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
-from mypy_boto3_s3.client import S3Client
-from mypy_boto3_s3.type_defs import PutObjectOutputTypeDef
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
+    from mypy_boto3_s3.type_defs import PutObjectOutputTypeDef
 
 from price_tracker_py.config.settings import load_backblaze_b2_config
 
